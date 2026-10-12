@@ -21,7 +21,14 @@ Install dependencies with `npm install --prefix octofit-tracker/frontend` and
 `npm install --prefix octofit-tracker/backend`.
 
 Populate MongoDB with repeatable sample users, teams, activities, leaderboard
-entries, and workouts with `npm run seed --prefix octofit-tracker/backend`.
+entries, and workouts with
+`OCTOFIT_SEED_PASSWORD='choose-a-local-password-12-chars-or-more' npm run seed --prefix octofit-tracker/backend`.
+The three sample accounts (`maya.chen@example.com`, `leo.martinez@example.com`,
+and `amina.patel@example.com`) use the password supplied to the seed command.
+The script hashes it with a per-user salt, updates the seeded account hashes
+when rerun, and refuses to run when `NODE_ENV=production`.
+Leaderboard points are derived from the seeded activities at one point per
+minute plus ten points per kilometer.
 
 Start the API in development mode with
 `npm run dev --prefix octofit-tracker/backend`. Its health endpoint is

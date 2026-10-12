@@ -9,6 +9,15 @@ import { Workout } from '../models/Workout.js';
 
 async function seedDatabase(): Promise<void> {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Refusing to seed demo data in production');
+    }
+
+    const seedPassword = process.env.OCTOFIT_SEED_PASSWORD;
+    if (!seedPassword || seedPassword.length < 12) {
+      throw new Error('Set OCTOFIT_SEED_PASSWORD to a value at least 12 characters long');
+    }
+
     await connectDatabase();
 
     console.log('Seed the octofit_db database with test data');
@@ -34,12 +43,11 @@ async function seedDatabase(): Promise<void> {
 
     for (const user of users) {
       const salt = randomBytes(16).toString('hex');
-      const passwordHash = `scrypt$${salt}$${scryptSync(randomBytes(32), salt, 64).toString('hex')}`;
+      const passwordHash = `scrypt$${salt}$${scryptSync(seedPassword, salt, 64).toString('hex')}`;
       const savedUser = await User.findOneAndUpdate(
         { email: user.email },
         {
-          $set: { ...user, email: user.email.toLowerCase() },
-          $setOnInsert: { passwordHash },
+          $set: { ...user, email: user.email.toLowerCase(), passwordHash },
         },
         { new: true, upsert: true, setDefaultsOnInsert: true },
       ).exec();
@@ -126,9 +134,9 @@ async function seedDatabase(): Promise<void> {
     }
 
     const leaderboardEntries = [
-      { email: 'maya.chen@example.com', team: 'Trailblazers', points: 1240 },
-      { email: 'leo.martinez@example.com', team: 'Trailblazers', points: 980 },
-      { email: 'amina.patel@example.com', team: 'Morning Movers', points: 1115 },
+      { email: 'maya.chen@example.com', team: 'Trailblazers' },
+      { email: 'leo.martinez@example.com', team: 'Trailblazers' },
+      { email: 'amina.patel@example.com', team: 'Morning Movers' },
     ];
 
     for (const entry of leaderboardEntries) {
@@ -137,9 +145,18 @@ async function seedDatabase(): Promise<void> {
       if (!userId || !teamId) {
         throw new Error(`Cannot resolve leaderboard references for ${entry.email}`);
       }
+      const points = activities
+        .filter((activity) => activity.email === entry.email)
+        .reduce(
+          (total, activity) =>
+            total +
+            activity.durationMinutes +
+            Math.round((activity.distanceKilometers ?? 0) * 10),
+          0,
+        );
       await Leaderboard.findOneAndUpdate(
         { user: userId },
-        { $set: { user: userId, team: teamId, points: entry.points } },
+        { $set: { user: userId, team: teamId, points } },
         { upsert: true, setDefaultsOnInsert: true },
       ).exec();
     }
